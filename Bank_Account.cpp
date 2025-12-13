@@ -31,21 +31,83 @@ static TimePoint parseDateTime(const std::string& s) {
     return Clock::from_time_t(tt);
 }
 
+std::vector<const Transaction*> BankAccount::getSortedTransactions() const {
+    std::vector<const Transaction*> sorted;
+    sorted.reserve(transactions.size());
+    for (const auto& t : transactions) {
+        sorted.push_back(t.get());
+    }
+    std::ranges::sort(sorted, std::ranges::less{}, &Transaction::getData);
+    return sorted;
+}
+
+BankAccount::Summary BankAccount::computeSummary() const {
+    Summary summary{};
+    summary.balance = balance();
+    for (const auto* t : getSortedTransactions()) {
+        const double val = t->getValue();
+        if (val >= 0) summary.deposits += val;
+        else          summary.withdrawals += -val;
+    }
+    return summary;
+}
+
+static void printTransaction(const Transaction& t) {
+    std::cout << std::format(
+        "ID: {}\n"
+        "Date: {}\n"
+        "Amount: {:.2f}\n"
+        "Operation: {}\n"
+        "Category: {}\n"
+        "Description: {}\n"
+        "Sender: {}\n"
+        "Receiver: {}\n\n",
+        t.getId(),
+        t.getDataFormatted(),
+        t.getAmount(),
+        t.getOperationType(),
+        t.getCategory(),
+        t.getDescription(),
+        t.getSenderAccount(),
+        t.getReceiverAccount()
+    );
+}
+
+template <typename Pred>
+void BankAccount::printFiltered(const std::string& pwd, Pred predicate) const {
+    requireAuth(pwd);
+    std::vector<const Transaction*> filtered;
+    for (const auto& t : transactions) {
+        if (predicate(*t)) {
+            filtered.push_back(t.get());
+        }
+    }
+    if (filtered.empty()) {
+        std::cout << "No transactions found\n";
+        return;
+    }
+    for (const auto* t : filtered) {
+        printTransaction(*t);
+    }
+}
+
+void BankAccount::validateTransfer(const BankAccount* destinationAccount) const {
+    if (!destinationAccount) {
+        throw std::invalid_argument("Transfer requires a destination account");
+    }
+    if (this->getOwnerId() != destinationAccount->getOwnerId() ||
+        this->getBankId() == destinationAccount->getBankId()) {
+        std::cerr << "Invalid transfer: accounts must belong to the same owner and have different bankId\n";
+        throw std::runtime_error("Transfer rule violated");
+    }
+}
 
 void BankAccount::addTransaction(std::unique_ptr<Transaction> t,
                                  const BankAccount* destinationAccount) {
     // Regole per i trasferimenti:
-    //deve esserci un destinatario
+    // deve esserci un destinatario
     if (t->getOperationType() == "Transfer") {
-        if (!destinationAccount) {
-            throw std::invalid_argument("Transfer requires a destination account");
-        }
-        //uno stesso account può effettuare trasferimenti su conti correnti differenti
-        if (this->getOwnerId() != destinationAccount->getOwnerId() ||
-            this->getBankId() == destinationAccount->getBankId()) {
-            std::cerr << "Invalid transfer: accounts must belong to the same owner and have different bankId\n";
-            throw std::runtime_error("Transfer rule violated");
-        }
+        validateTransfer(destinationAccount);
     }
 
     // Non si possono effettuare spese nel momento in cui il conto corrente è in negativo
@@ -100,27 +162,6 @@ std::vector<const Transaction*> BankAccount::filterByCounterparty(const std::str
     return out;
 }
 
-static void printTransaction(const Transaction& t) {
-    std::cout << std::format(
-        "ID: {}\n"
-        "Date: {}\n"
-        "Amount: {:.2f}\n"
-        "Operation: {}\n"
-        "Category: {}\n"
-        "Description: {}\n"
-        "Sender: {}\n"
-        "Receiver: {}\n\n",
-        t.getId(),
-        t.getDataFormatted(),
-        t.getAmount(),
-        t.getOperationType(),
-        t.getCategory(),
-        t.getDescription(),
-        t.getSenderAccount(),
-        t.getReceiverAccount()
-    );
-}
-
 void BankAccount::printTransactionById(const std::string& pwd,
                                        const std::string& txId) const {
     requireAuth(pwd);
@@ -135,55 +176,32 @@ void BankAccount::printTransactionById(const std::string& pwd,
 
 void BankAccount::printTransactionsByType(const std::string& pwd,
                                           const std::string& opType) const {
-    requireAuth(pwd);
-
-    auto list = filterByType(opType);
-    if (list.empty()) {
-        std::cout << "No transactions of type '" << opType << "' found\n";
-        return;
-    }
-
-    for (const auto* t : list) {
-        printTransaction(*t);
-    }
+    printFiltered(pwd, [&](const Transaction& t) {
+        return t.getOperationType() == opType;
+    });
 }
 
 void BankAccount::printTransactionsByAccount(const std::string& pwd,
                                              const std::string& accountId) const {
-    requireAuth(pwd);
-
-    auto list = filterByCounterparty(accountId);
-    if (list.empty()) {
-        std::cout << "No transactions for account '" << accountId << "' found\n";
-        return;
-    }
-
-    for (const auto* t : list) {
-        printTransaction(*t);
-    }
+    printFiltered(pwd, [&](const Transaction& t) {
+        return t.getSenderAccount() == accountId || t.getReceiverAccount() == accountId;
+    });
 }
 
 void BankAccount::printTransactions() const {
     std::cout << "\n--- Transaction List ---\n";
-    std::vector<const Transaction*> trs;
-    trs.reserve(transactions.size());
-    for (const auto& t : transactions) {
-        trs.push_back(t.get());
-    }
-    std::ranges::sort(trs, std::ranges::less{}, &Transaction::getData);
 
-    double totalDeposits = 0.0, totalWithdrawals = 0.0;
-    for (const auto* t : trs) {
+    auto sorted = getSortedTransactions();
+    Summary summary = computeSummary();
+
+    for (const auto* t : sorted) {
         printTransaction(*t);
-        const double val = t->getValue();
-        if (val >= 0) totalDeposits += val;
-        else          totalWithdrawals += -val;
     }
 
     std::cout << "----------------------------------------------\n";
     std::cout << std::format(
         "Total Deposits: \x1b[38;2;0;100;0m{:.2f}\x1b[0m\n Total Withdrawals: \x1b[38;2;139;0;0m{:.2f}\x1b[0m\nBalance: {:.2f}\n",
-        totalDeposits, totalWithdrawals, balance()
+        summary.deposits, summary.withdrawals, summary.balance
     );
 }
 
@@ -196,26 +214,18 @@ void BankAccount::SaveToFile(const std::string& filename, const std::string& pwd
     file << std::format("Account Owner: {}, Bank: {}\n", ownerId, bankId);
     file << "ID,Date,Amount,Type,Operation,Category,Description,Sender,Receiver\n";
 
-    std::vector<const Transaction*> sorted;
-    sorted.reserve(transactions.size());
-    for (const auto& t : transactions) {
-        sorted.push_back(t.get());
-    }
-    std::ranges::sort(sorted, std::ranges::less{}, &Transaction::getData);
+    auto sorted = getSortedTransactions();
+    Summary summary = computeSummary();
 
-    double totalDeposits = 0.0, totalWithdrawals = 0.0;
     for (const auto* t : sorted) {
         file << std::format("{},{},{:.2f},{},{},{},{},{},{}\n",
                             t->getId(), t->getDataFormatted(), t->getAmount(),
                             t->getType(), t->getOperationType(), t->getCategory(),
                             t->getDescription(), t->getSenderAccount(), t->getReceiverAccount());
-        const double val = t->getValue();
-        if (val >= 0) totalDeposits += val;
-        else          totalWithdrawals += -val;
     }
 
     file << std::format("Summary,,Total Deposits: {:.2f},Total Withdrawals: {:.2f},Final Balance: {:.2f}\n",
-                        totalDeposits, totalWithdrawals, balance());
+                        summary.deposits, summary.withdrawals, summary.balance);
 }
 
 void BankAccount::ReadFromFile(const std::string& filename, const std::string& pwd) {
@@ -285,7 +295,6 @@ void BankAccount::ReadFromFile(const std::string& filename, const std::string& p
         }
 
         TimePoint tp = parseDateTime(dateS);
-
 
         /* In fase di import NON applichiamo le regole di validazione dei transfer:
          inseriamo direttamente nella lista, così anche le righe "Transfer" vengono
