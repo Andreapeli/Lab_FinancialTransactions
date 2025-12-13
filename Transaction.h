@@ -24,8 +24,7 @@ protected:
     std::string OperationType;
     std::string SenderAccount;
     std::string ReceiverAccount;
-    std::string IdBankR;
-    std::string IdBankS;
+
 
 public:
     Transaction(std::string idGen, TimePoint d, double i, std::string desc, std::string cat,
@@ -35,14 +34,30 @@ public:
 
     virtual ~Transaction() = default;
 
-    const std::string getId() const { return id; }
-    const std::string getSenderAccount() const { return SenderAccount; }
-    const std::string getReceiverAccount() const { return ReceiverAccount; }
-    const std::string getCategory() const { return category; }
-    const std::string getDescription() const { return description; }
-    const std::string getOperationType() const { return OperationType; }
-    double getAmount() const { return amount; }
-    TimePoint getData() const { return data; }
+    const std::string getId() const{
+        return id;
+    }
+    const std::string getSenderAccount() const{
+        return SenderAccount;
+    }
+    const std::string getReceiverAccount() const{
+        return ReceiverAccount;
+    }
+    const std::string getCategory() const{
+        return category;
+    }
+    const std::string getDescription() const{
+        return description;
+    }
+    const std::string getOperationType() const{
+        return OperationType;
+    }
+    double getAmount() const{
+        return amount;
+    }
+    TimePoint getData() const{
+        return data;
+    }
 
     std::string getDataFormatted() const {
         return std::format("{:%Y-%m-%d %H:%M:%S}", data);

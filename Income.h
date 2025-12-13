@@ -14,8 +14,12 @@ public:
             std::string OpType, std::string SendAcc, std::string RecAccount)
         : Transaction(std::move(idGen), d, i, std::move(desc), std::move(cat), std::move(OpType), std::move(SendAcc), std::move(RecAccount)) {}
 
-    std::string getType() const override { return "Income"; }
-    double getValue() const override { return amount; }
+    std::string getType() const override{
+        return "Income";
+    }
+    double getValue() const override{
+        return amount;
+    }
 };
 
 
