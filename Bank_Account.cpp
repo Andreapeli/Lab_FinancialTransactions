@@ -9,7 +9,6 @@
 #include <iomanip>
 #include <sstream>
 #include <array>
-#include<stdio.h>
 #include "Expense.h"
 #include "Income.h"
 #include "Bank_Account.h"
@@ -47,10 +46,6 @@ void BankAccount::addTransaction(std::unique_ptr<Transaction> t,
             std::cerr << "Invalid transfer: accounts must belong to the same owner and have different bankId\n";
             throw std::runtime_error("Transfer rule violated");
         }
-        /*if (t->getSenderAccount() == t->getReceiverAccount()) {
-            std::cerr << "Invalid transfer: sender and receiver accounts must differ\n";
-            throw std::runtime_error("Transfer rule violated (same account)");
-        }*/
     }
 
     // Non si possono effettuare spese nel momento in cui il conto corrente è in negativo
@@ -69,6 +64,105 @@ double BankAccount::balance() const {
     return total;
 }
 
+void BankAccount::requireAuth(const std::string& pwd) const {
+    if (!verifyPwd(pwd)) {
+        throw std::runtime_error("Access denied: incorrect password");
+    }
+}
+
+const Transaction* BankAccount::findTransactionById(const std::string& txId) const {
+    for (const auto& t : transactions) {
+        if (t->getId() == txId) {
+            return t.get();
+        }
+    }
+    return nullptr;
+}
+
+std::vector<const Transaction*> BankAccount::filterByType(const std::string& opType) const {
+    std::vector<const Transaction*> out;
+    for (const auto& t : transactions) {
+        if (t->getOperationType() == opType) {
+            out.push_back(t.get());
+        }
+    }
+    return out;
+}
+
+std::vector<const Transaction*> BankAccount::filterByCounterparty(const std::string& accountId) const {
+    std::vector<const Transaction*> out;
+    for (const auto& t : transactions) {
+        if (t->getSenderAccount() == accountId ||
+            t->getReceiverAccount() == accountId) {
+            out.push_back(t.get());
+        }
+    }
+    return out;
+}
+
+static void printTransaction(const Transaction& t) {
+    std::cout << std::format(
+        "ID: {}\n"
+        "Date: {}\n"
+        "Amount: {:.2f}\n"
+        "Operation: {}\n"
+        "Category: {}\n"
+        "Description: {}\n"
+        "Sender: {}\n"
+        "Receiver: {}\n\n",
+        t.getId(),
+        t.getDataFormatted(),
+        t.getAmount(),
+        t.getOperationType(),
+        t.getCategory(),
+        t.getDescription(),
+        t.getSenderAccount(),
+        t.getReceiverAccount()
+    );
+}
+
+void BankAccount::printTransactionById(const std::string& pwd,
+                                       const std::string& txId) const {
+    requireAuth(pwd);
+
+    const Transaction* t = findTransactionById(txId);
+    if (!t) {
+        std::cerr << "Transaction with ID '" << txId << "' not found\n";
+        return;
+    }
+    printTransaction(*t);
+}
+
+void BankAccount::printTransactionsByType(const std::string& pwd,
+                                          const std::string& opType) const {
+    requireAuth(pwd);
+
+    auto list = filterByType(opType);
+    if (list.empty()) {
+        std::cout << "No transactions of type '" << opType << "' found\n";
+        return;
+    }
+
+    for (const auto* t : list) {
+        printTransaction(*t);
+    }
+}
+
+void BankAccount::printTransactionsByAccount(const std::string& pwd,
+                                             const std::string& accountId) const {
+    requireAuth(pwd);
+
+    auto list = filterByCounterparty(accountId);
+    if (list.empty()) {
+        std::cout << "No transactions for account '" << accountId << "' found\n";
+        return;
+    }
+
+    for (const auto* t : list) {
+        printTransaction(*t);
+    }
+}
+
 void BankAccount::printTransactions() const {
     std::cout << "\n--- Transaction List ---\n";
     std::vector<const Transaction*> trs;
@@ -80,17 +174,7 @@ void BankAccount::printTransactions() const {
 
     double totalDeposits = 0.0, totalWithdrawals = 0.0;
     for (const auto* t : trs) {
-        std::cout << std::format(
-            "ID: {}\n"
-            "|Date: {}\n"
-            "|Amount: {:.2f}\n"
-            "|Type: {}\n"
-            "|Operation: {}\n"
-            "|Category: {}\n"
-            "|Description: {}\n\n",
-            t->getId(), t->getDataFormatted(), t->getAmount(),
-            t->getType(), t->getOperationType(), t->getCategory(), t->getDescription()
-        );
+        printTransaction(*t);
         const double val = t->getValue();
         if (val >= 0) totalDeposits += val;
         else          totalWithdrawals += -val;
@@ -98,16 +182,13 @@ void BankAccount::printTransactions() const {
 
     std::cout << "----------------------------------------------\n";
     std::cout << std::format(
-        "Total Deposits: {:.2f}\nTotal Withdrawals: {:.2f}\nBalance: {:.2f}\n",
+        "Total Deposits: \x1b[38;2;0;100;0m{:.2f}\x1b[0m\n Total Withdrawals: \x1b[38;2;139;0;0m{:.2f}\x1b[0m\nBalance: {:.2f}\n",
         totalDeposits, totalWithdrawals, balance()
     );
 }
 
 void BankAccount::SaveToFile(const std::string& filename, const std::string& pwd) const {
-    if (!verifyPwd(pwd)) {
-        std::cerr << "Access denied: incorrect password\n";
-        throw std::runtime_error("Invalid password");
-    }
+    requireAuth(pwd);
 
     std::ofstream file(filename);
     if (!file) throw std::runtime_error("Error opening file");
@@ -138,7 +219,7 @@ void BankAccount::SaveToFile(const std::string& filename, const std::string& pwd
 }
 
 void BankAccount::ReadFromFile(const std::string& filename, const std::string& pwd) {
-    if (!verifyPwd(pwd)) throw std::runtime_error("Invalid password");
+    requireAuth(pwd);
 
     std::ifstream file(filename);
     if (!file) throw std::runtime_error("Error opening file");
@@ -189,7 +270,7 @@ void BankAccount::ReadFromFile(const std::string& filename, const std::string& p
         const std::string& id        = cols[0];
         const std::string& dateS     = cols[1];
         const std::string& amtS      = cols[2];
-        const std::string& type      = cols[3];
+        const std::string& opType    = cols[3];
         const std::string& op        = cols[4];
         const std::string& cat       = cols[5];
         const std::string& desc      = cols[6];
@@ -209,14 +290,14 @@ void BankAccount::ReadFromFile(const std::string& filename, const std::string& p
         /* In fase di import NON applichiamo le regole di validazione dei transfer:
          inseriamo direttamente nella lista, così anche le righe "Transfer" vengono
          ripristinate fedelmente dallo storico.*/
-        if (type == "Income") {
+        if (opType == "Income") {
             auto tx = std::make_unique<Income>(id, tp, amount, desc, cat, op, senderAcc, recvAcc);
             transactions.push_back(std::move(tx));
-        } else if (type == "Expense") {
+        } else if (opType == "Expense") {
             auto tx = std::make_unique<Expense>(id, tp, amount, desc, cat, op, senderAcc, recvAcc);
             transactions.push_back(std::move(tx));
         } else {
-            throw std::runtime_error("Unknown Type in CSV: " + type);
+            throw std::runtime_error("Unknown Type in CSV: " + opType);
         }
     }
 }

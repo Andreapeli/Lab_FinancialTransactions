@@ -14,10 +14,14 @@ class Expense : public Transaction {
 public:
     Expense(std::string idGen, TimePoint d, double i, std::string desc, std::string cat,
            std::string tipoOp, std::string SendAcc, std::string RecAcc)
-        : Transaction(move(idGen), d,i, move(desc), move(cat), tipoOp, SendAcc, RecAcc) {}
+        : Transaction(std::move(idGen), d,i, std::move(desc), std::move(cat), std::move(tipoOp), std::move(SendAcc),std::move( RecAcc)) {}
 
-    std::string getType() const override { return "Expense"; }
-    double getValue() const override { return -amount; }
+    std::string getType() const override{
+        return "Expense";
+    }
+    double getValue() const override{
+        return -amount;
+    }
 };
 
 
