@@ -68,13 +68,13 @@ int main() {
     try {
 
         A1.addTransaction(mk_expense("TRF-A1A2-OUT-001", 300.0,
-                                     "Trasferimento a IT0002", "Transfer", "Expense",
+                                     "Trasferimento a IT0002", "Transfer", "Transfer",
                                      A1.getBankId(), A2.getBankId()),
                           &A2);
 
         // Lato entrata (Income) con OperationType "Transfer" e categoria "Transfer"
         A2.addTransaction(mk_income("TRF-A1A2-IN-001", 300.0,
-                                    "Ricevuto da IT0001", "Transfer", "Income",
+                                    "Ricevuto da IT0001", "Transfer", "Transfer",
                                     A1.getBankId(), A2.getBankId()),
                           &A1);
 
@@ -84,11 +84,11 @@ int main() {
     }
     try {
         A1.addTransaction(mk_expense("TRF-A1B1-OUT-001", 25.0,
-                                     "Pagamento a Bob", "Transfer", "Expense",
+                                     "Pagamento a Bob", "Transfer", "Transfer",
                                      A1.getBankId(), B1.getBankId()),
                           &B1);
         B1.addTransaction(mk_income("TRF-A1B1-IN-001", 25.0,
-                                    "Ricevuto da Alice", "Transfer", "Income",
+                                    "Ricevuto da Alice", "Transfer", "Transfer",
                                     A1.getBankId(), B1.getBankId()),
                           &A1);
 
@@ -156,7 +156,7 @@ int main() {
     // 6) Stampa riepiloghi
     std::cout << "\n=== TRANSAZIONI A1 ===\n";
     A1.printTransactions();
-    system("pause");
+
 
     try {
         std::cout << "\n--- [TEST] Singola transazione A1 (ID valido) ---\n";
@@ -232,9 +232,6 @@ int main() {
     system("read -p \"Premi INVIO per continuare...\" _; clear");
     // 8) Lettura CSV su nuove istanze e ristampa
     try {
-        /*BankAccount A1("Alice", "IT0001", "pwdA");
-        BankAccount A2("Alice", "IT0002", "pwdA");
-        BankAccount B1("Bob",  "IT7777", "pwdB");*/
 
         A1.ReadFromFile(fA1, "pwdA");
         A2.ReadFromFile(fA2, "pwdA");

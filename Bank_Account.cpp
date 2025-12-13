@@ -86,6 +86,7 @@ void BankAccount::printFiltered(const std::string& pwd, Pred predicate) const {
         std::cout << "No transactions found\n";
         return;
     }
+    std::ranges::sort(filtered, std::ranges::less{}, &Transaction::getData);
     for (const auto* t : filtered) {
         printTransaction(*t);
     }
@@ -115,6 +116,7 @@ void BankAccount::addTransaction(std::unique_ptr<Transaction> t,
         std::cerr << "Insufficient funds for withdrawal\n";
         throw std::runtime_error("Insufficient balance");
     }
+    // Nota: non viene controllata la duplicazione degli ID, si assume che siano unici
     transactions.push_back(std::move(t));
 }
 
@@ -164,14 +166,9 @@ std::vector<const Transaction*> BankAccount::filterByCounterparty(const std::str
 
 void BankAccount::printTransactionById(const std::string& pwd,
                                        const std::string& txId) const {
-    requireAuth(pwd);
-
-    const Transaction* t = findTransactionById(txId);
-    if (!t) {
-        std::cerr << "Transaction with ID '" << txId << "' not found\n";
-        return;
-    }
-    printTransaction(*t);
+    printFiltered(pwd, [&](const Transaction& t) {
+        return t.getId() == txId;
+    });
 }
 
 void BankAccount::printTransactionsByType(const std::string& pwd,
@@ -224,7 +221,7 @@ void BankAccount::SaveToFile(const std::string& filename, const std::string& pwd
                             t->getDescription(), t->getSenderAccount(), t->getReceiverAccount());
     }
 
-    file << std::format("Summary,,Total Deposits: {:.2f},Total Withdrawals: {:.2f},Final Balance: {:.2f}\n",
+    file << std::format("Summary, Total Deposits: {:.2f},Total Withdrawals: {:.2f},Final Balance: {:.2f}\n",
                         summary.deposits, summary.withdrawals, summary.balance);
 }
 
