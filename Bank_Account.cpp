@@ -201,14 +201,13 @@ void BankAccount::printTransactions() const {
 
 void BankAccount::SaveToFile(const std::string& filename, const std::string& pwd) const {
     requireAuth(pwd);
-
-    std::ofstream file(filename, std::ios::binary);
+    std::ofstream file(filename);
     if (!file) throw std::runtime_error("Error opening file");
 
     // BOM UTF-8 per Excel
     file << "\xEF\xBB\xBF";
 
-    file << std::format("Account Owner: {}, Bank: {}\r\n", ownerId, bankId);
+    file << std::format("Account Owner: {}, Bank: {}\n", ownerId, bankId);
     file << "\"ID\";\"Date\";\"Amount\";\"Operation\";\"Category\";\"Description\";\"Sender\";\"Receiver\"\r\n";
 
     auto sorted = getSortedTransactions();

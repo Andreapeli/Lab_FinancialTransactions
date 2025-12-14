@@ -42,7 +42,7 @@ int main() {
     std::cout << "<< Avvio test transazioni >>\n";
 
 
-    BankAccount A1("Alice", "IT0001", "pwdA");
+    BankAccount A1("Alice", "IT0001", "pwdA1");
     BankAccount A2("Alice", "IT0002", "pwdA");
     BankAccount B1("Bob",  "IT7777", "pwdB");
     BankAccount EA("extern", "EXT001","pwd000");
@@ -159,7 +159,7 @@ int main() {
 
     try {
         std::cout << "\n--- [TEST] Singola transazione A1 (ID valido) ---\n";
-        A1.printTransactionById("pwdA", "INC-A1-001");
+        A1.printTransactionById("pwdA1", "INC-A1-001");
     } catch (const std::exception& ex) {
         std::cerr << "[ERR] printTransactionById valido: " << ex.what() << "\n";
     }
@@ -174,7 +174,7 @@ int main() {
 
     try {
         std::cout << "\n--- [TEST] Singola transazione A1 (ID inesistente) ---\n";
-        A1.printTransactionById("pwdA", "NO-TX-ID");
+        A1.printTransactionById("pwdA1", "NO-TX-ID");
     } catch (const std::exception& ex) {
         std::cerr << "[ERR] printTransactionById ID inesistente: " << ex.what() << "\n";
     }
@@ -221,7 +221,7 @@ int main() {
     const string fA2 = "A2.csv";
     const string fB1 = "B1.csv";
     try {
-        A1.SaveToFile(fA1, "pwdA");
+        A1.SaveToFile(fA1, "pwdA1");
         A2.SaveToFile(fA2, "pwdA");
         B1.SaveToFile(fB1, "pwdB");
         std::cout << "[OK] CSV salvati.\n";
@@ -232,7 +232,7 @@ int main() {
     // 8) Lettura CSV su nuove istanze e ristampa
     try {
 
-        A1.ReadFromFile(fA1, "pwdA");
+        A1.ReadFromFile(fA1, "pwdA1");
         A2.ReadFromFile(fA2, "pwdA");
         B1.ReadFromFile(fB1, "pwdB");
 
