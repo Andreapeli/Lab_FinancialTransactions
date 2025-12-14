@@ -50,16 +50,13 @@ int main() {
     try {
         A1.addTransaction(mk_income("INC-A1-001", 2800,
                                     "Stipendio novembre", "Salary", "Income",
-                                    EA.getBankId(), A1.getBankId()),
-                          nullptr);
+                                    EA.getBankId(), A1.getBankId()));
         A1.addTransaction(mk_expense("EXP-A1-001", 120.0,
                                      "Spesa supermercato", "Groceries", "Expense",
-                                     A1.getBankId(), EA.getBankId()),
-                          nullptr);
+                                     A1.getBankId(), EA.getBankId()));
         A2.addTransaction(mk_income("INC-A2-001", 500.0,
                                     "Bonus tredicesima", "Gift", "Income",
-                                    EA.getBankId(), A2.getBankId()),
-                          nullptr);
+                                    EA.getBankId(), A2.getBankId()));
         std::cout << "[OK] Operazioni base inserite.\n";
     } catch (const std::exception& ex) {
         std::cerr << "[ERR] Operazioni base: " << ex.what() << "\n";
@@ -155,6 +152,7 @@ int main() {
     // 6) Stampa riepiloghi
     std::cout << "\n=== TRANSAZIONI A1 ===\n";
     A1.printTransactions();
+    system("read -p \"Premi INVIO per continuare...\" _; clear");
 
 
     try {
@@ -163,7 +161,7 @@ int main() {
     } catch (const std::exception& ex) {
         std::cerr << "[ERR] printTransactionById valido: " << ex.what() << "\n";
     }
-
+    system("read -p \"Premi INVIO per continuare...\" _; clear");
     try {
         std::cout << "\n--- [TEST] Singola transazione A1 (password errata) ---\n";
         A1.printTransactionById("wrongPwd", "INC-A1-001");
@@ -171,31 +169,29 @@ int main() {
     } catch (const std::runtime_error& ex) {
         std::cout << "[OK] Eccezione attesa (password errata): " << ex.what() << "\n";
     }
-
     try {
         std::cout << "\n--- [TEST] Singola transazione A1 (ID inesistente) ---\n";
         A1.printTransactionById("pwdA1", "NO-TX-ID");
     } catch (const std::exception& ex) {
         std::cerr << "[ERR] printTransactionById ID inesistente: " << ex.what() << "\n";
     }
-
+    system("read -p \"Premi INVIO per continuare...\" _; clear");
     std::cout << "\n=== TRANSAZIONI A2 ===\n";
     A2.printTransactions();
-
+    system("read -p \"Premi INVIO per continuare...\" _; clear");
     try {
         std::cout << "\n--- [TEST] Solo ENTRATE A2 ---\n";
         A2.printTransactionsByType("pwdA", "Income");
     } catch (const std::exception& ex) {
         std::cerr << "[ERR] printTransactionsByType Income: " << ex.what() << "\n";
     }
-
     try {
         std::cout << "\n--- [TEST] Solo SPESE A2 (attese vuote) ---\n";
         A2.printTransactionsByType("pwdA", "Expense");
     } catch (const std::exception& ex) {
         std::cerr << "[ERR] printTransactionsByType Expense: " << ex.what() << "\n";
     }
-
+    system("read -p \"Premi INVIO per continuare...\" _; clear");
     std::cout << "\n=== TRANSAZIONI B1 ===\n";
     B1.printTransactions();
 
@@ -205,7 +201,6 @@ int main() {
     } catch (const std::exception& ex) {
         std::cerr << "[ERR] printTransactionsByAccount: " << ex.what() << "\n";
     }
-
     try {
         std::cout << "\n--- [TEST] Transazioni verso IT0001 (password errata) ---\n";
         B1.printTransactionsByAccount("wrongPwd", "IT0001");
