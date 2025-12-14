@@ -68,13 +68,13 @@ int main() {
     try {
 
         A1.addTransaction(mk_expense("TRF-A1A2-OUT-001", 300.0,
-                                     "Trasferimento a IT0002", "Transfer", "Transfer",
+                                     "Trasferimento a IT0002", "Transfer", "Expense",
                                      A1.getBankId(), A2.getBankId()),
                           &A2);
 
         // Lato entrata (Income) con OperationType "Transfer" e categoria "Transfer"
         A2.addTransaction(mk_income("TRF-A1A2-IN-001", 300.0,
-                                    "Ricevuto da IT0001", "Transfer", "Transfer",
+                                    "Ricevuto da IT0001", "Transfer", "Income",
                                     A1.getBankId(), A2.getBankId()),
                           &A1);
 
@@ -84,11 +84,11 @@ int main() {
     }
     try {
         A1.addTransaction(mk_expense("TRF-A1B1-OUT-001", 25.0,
-                                     "Pagamento a Bob", "Transfer", "Transfer",
+                                     "Pagamento a Bob", "Transfer", "Expense",
                                      A1.getBankId(), B1.getBankId()),
                           &B1);
         B1.addTransaction(mk_income("TRF-A1B1-IN-001", 25.0,
-                                    "Ricevuto da Alice", "Transfer", "Transfer",
+                                    "Ricevuto da Alice", "Transfer", "Income",
                                     A1.getBankId(), B1.getBankId()),
                           &A1);
 
@@ -101,7 +101,7 @@ int main() {
     // Casi di errore
     try {
         A1.addTransaction(mk_expense("TRF-NO-DST", 50.0,
-                                     "Transfer senza destinazione", "Transfer", "Transfer",
+                                     "Transfer senza destinazione", "Transfer", "Expense",
                                      A1.getBankId(), A2.getBankId()),
                           nullptr);
         std::cerr << "[FAIL] Mi aspettavo eccezione (no destination)\n";
@@ -113,7 +113,7 @@ int main() {
 
     try {
         A1.addTransaction(mk_expense("TRF-SAME-ACC", 10.0,
-                                     "Transfer verso stesso conto (atteso KO)", "invalid Transfer", "Transfer",
+                                     "Transfer verso stesso conto (atteso KO)", "invalid Transfer", "Expense",
                                      A1.getBankId(), A1.getBankId()),
                           &A1);
         std::cerr << "[FAIL] Mi aspettavo eccezione (same account)\n";
