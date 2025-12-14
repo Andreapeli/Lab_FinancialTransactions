@@ -202,31 +202,49 @@ void BankAccount::printTransactions() const {
 void BankAccount::SaveToFile(const std::string& filename, const std::string& pwd) const {
     requireAuth(pwd);
 
-    std::ofstream file(filename);
+    std::ofstream file(filename, std::ios::binary);
     if (!file) throw std::runtime_error("Error opening file");
 
-    file << std::format("Account Owner: {}, Bank: {}\n", ownerId, bankId);
-    file << "ID,Date,Amount,Operation,Category,Description,Sender,Receiver\n";
+    // BOM UTF-8 per Excel
+    file << "\xEF\xBB\xBF";
+
+    file << std::format("Account Owner: {}, Bank: {}\r\n", ownerId, bankId);
+    file << "\"ID\";\"Date\";\"Amount\";\"Operation\";\"Category\";\"Description\";\"Sender\";\"Receiver\"\r\n";
 
     auto sorted = getSortedTransactions();
     Summary summary = computeSummary();
 
     for (const auto* t : sorted) {
-        file << std::format("{},{},{:.2f},{},{},{},{},{}\n",
-                            t->getId(), t->getDataFormatted().substr(0,19), t->getAmount(),
-                            t->getOperationType(), t->getCategory(),
-                            t->getDescription(), t->getSenderAccount(), t->getReceiverAccount());
+        std::string amt = std::format("{:.2f}", t->getAmount());
+        std::replace(amt.begin(), amt.end(), '.', ',');
+
+        file << std::format("\"{}\";\"{}\";\"{}\";\"{}\";\"{}\";\"{}\";\"{}\";\"{}\"\r\n",
+                            t->getId(),
+                            t->getDataFormatted().substr(0,19),
+                            amt,
+                            t->getOperationType(),
+                            t->getCategory(),
+                            t->getDescription(),
+                            t->getSenderAccount(),
+                            t->getReceiverAccount());
     }
 
-    file << std::format("Summary, Total Deposits: {:.2f},Total Withdrawals: {:.2f},Final Balance: {:.2f}\n",
-                        summary.deposits, summary.withdrawals, summary.balance);
+    std::string deposits = std::format("{:.2f}", summary.deposits);
+    std::replace(deposits.begin(), deposits.end(), '.', ',');
+    std::string withdrawals = std::format("{:.2f}", summary.withdrawals);
+    std::replace(withdrawals.begin(), withdrawals.end(), '.', ',');
+    std::string balanceStr = std::format("{:.2f}", summary.balance);
+    std::replace(balanceStr.begin(), balanceStr.end(), '.', ',');
+
+    file << std::format("Summary; Total Deposits: {};Total Withdrawals: {};Final Balance: {}\r\n",
+                        deposits, withdrawals, balanceStr);
 }
 
 void BankAccount::ReadFromFile(const std::string& filename, const std::string& pwd) {
     requireAuth(pwd);
     transactions.clear();
 
-    std::ifstream file(filename);
+    std::ifstream file(filename, std::ios::binary);
     if (!file) throw std::runtime_error("Error opening file");
 
     std::string line;
@@ -234,7 +252,6 @@ void BankAccount::ReadFromFile(const std::string& filename, const std::string& p
     // 1) Prima riga: "Account Owner: X, Bank: Y" -> validazione coerenza
     if (!std::getline(file, line)) throw std::runtime_error("Empty file");
     {
-        // Parsing semplice e robusto
         const std::string ownerKey = "Account Owner: ";
         const std::string bankKey  = ", Bank: ";
 
@@ -253,7 +270,6 @@ void BankAccount::ReadFromFile(const std::string& filename, const std::string& p
 
     // 2) Header CSV (atteso con Sender,Receiver)
     if (!std::getline(file, line)) throw std::runtime_error("Missing CSV header");
-    // opzionale: validare che contenga tutte le colonne attese
 
     // 3) Righe dati
     while (std::getline(file, line)) {
@@ -261,16 +277,21 @@ void BankAccount::ReadFromFile(const std::string& filename, const std::string& p
             break; // ignora il sommario
         }
 
-        // Splitta 8 campi: ID,Date,Amount,Operation,Category,Description,Sender,Receiver
         std::array<std::string, 8> cols{};
-        {
-            std::stringstream ss(line);
-            for (int i = 0; i < 8; ++i) {
-                if (!std::getline(ss, cols[i], ',')) {
-                    throw std::runtime_error("Malformed CSV line: " + line);
-                }
+        std::stringstream ss(line);
+        std::string cell;
+        int i = 0;
+        while (std::getline(ss, cell, ';')) {
+            // Rimuove eventuali doppi apici
+            if (!cell.empty() && cell.front() == '"' && cell.back() == '"') {
+                cell = cell.substr(1, cell.size()-2);
             }
+            // Converte decimali italiani (',' -> '.')
+            std::replace(cell.begin(), cell.end(), ',', '.');
+
+            if (i < 8) cols[i++] = cell;
         }
+        if (i != 8) throw std::runtime_error("Malformed CSV line: " + line);
 
         const std::string& id        = cols[0];
         const std::string& dateS     = cols[1];
@@ -290,9 +311,6 @@ void BankAccount::ReadFromFile(const std::string& filename, const std::string& p
 
         TimePoint tp = parseDateTime(dateS);
 
-        /* In fase di import NON applichiamo le regole di validazione dei transfer:
-         inseriamo direttamente nella lista, così anche le righe "Transfer" vengono
-         ripristinate fedelmente dallo storico.*/
         if (op == "Income") {
             auto tx = std::make_unique<Income>(id, tp, amount, desc, cat, op, senderAcc, recvAcc);
             transactions.push_back(std::move(tx));
