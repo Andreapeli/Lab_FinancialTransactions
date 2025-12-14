@@ -42,13 +42,13 @@ int main() {
     std::cout << "<< Avvio test transazioni >>\n";
 
 
-    BankAccount A1("Alice", "IT0001", "pwdA");
+    BankAccount A1("Alice", "IT0001", "pwdA1");
     BankAccount A2("Alice", "IT0002", "pwdA");
     BankAccount B1("Bob",  "IT7777", "pwdB");
     BankAccount EA("extern", "EXT001","pwd000");
 
     try {
-        A1.addTransaction(mk_income("INC-A1-001", 1500.0,
+        A1.addTransaction(mk_income("INC-A1-001", 2800,
                                     "Stipendio novembre", "Salary", "Income",
                                     EA.getBankId(), A1.getBankId()),
                           nullptr);
@@ -68,13 +68,13 @@ int main() {
     try {
 
         A1.addTransaction(mk_expense("TRF-A1A2-OUT-001", 300.0,
-                                     "Trasferimento a IT0002", "Transfer", "Transfer",
+                                     "Trasferimento a IT0002", "Transfer", "Expense",
                                      A1.getBankId(), A2.getBankId()),
                           &A2);
 
         // Lato entrata (Income) con OperationType "Transfer" e categoria "Transfer"
         A2.addTransaction(mk_income("TRF-A1A2-IN-001", 300.0,
-                                    "Ricevuto da IT0001", "Transfer", "Transfer",
+                                    "Ricevuto da IT0001", "Transfer", "Income",
                                     A1.getBankId(), A2.getBankId()),
                           &A1);
 
@@ -84,11 +84,11 @@ int main() {
     }
     try {
         A1.addTransaction(mk_expense("TRF-A1B1-OUT-001", 25.0,
-                                     "Pagamento a Bob", "Transfer", "Transfer",
+                                     "Pagamento a Bob", "Transfer", "Expense",
                                      A1.getBankId(), B1.getBankId()),
                           &B1);
         B1.addTransaction(mk_income("TRF-A1B1-IN-001", 25.0,
-                                    "Ricevuto da Alice", "Transfer", "Transfer",
+                                    "Ricevuto da Alice", "Transfer", "Income",
                                     A1.getBankId(), B1.getBankId()),
                           &A1);
 
@@ -101,7 +101,7 @@ int main() {
     // Casi di errore
     try {
         A1.addTransaction(mk_expense("TRF-NO-DST", 50.0,
-                                     "Transfer senza destinazione", "Transfer", "Transfer",
+                                     "Transfer senza destinazione", "Transfer", "Expense",
                                      A1.getBankId(), A2.getBankId()),
                           nullptr);
         std::cerr << "[FAIL] Mi aspettavo eccezione (no destination)\n";
@@ -113,27 +113,26 @@ int main() {
 
     try {
         A1.addTransaction(mk_expense("TRF-SAME-ACC", 10.0,
-                                     "Transfer verso stesso conto (atteso KO)", "invalid Transfer", "Transfer",
+                                     "Transfer verso stesso conto (atteso KO)", "Transfer", "Expense",
                                      A1.getBankId(), A1.getBankId()),
                           &A1);
         std::cerr << "[FAIL] Mi aspettavo eccezione (same account)\n";
     } catch (const std::runtime_error& ex1) {
         std::cout << "[OK] Eccezione attesa (same account): " << ex1.what() << "\n";
     } catch (const std::exception& ex) {
-        std::cout << "[OK?] Eccezione (same account): " << ex.what() << "\n";
+        std::cout << "[OK] Eccezione (same account): " << ex.what() << "\n";
     }
 
     try {
 
         A1.addTransaction(mk_expense("EXP-NOFUNDS", 5000.0,
                                       "Acquisto eccessivo", "Transfer", "Expense",
-                                      EA.getBankId(), A1.getBankId()),
-                           nullptr);
+                                      A1.getBankId(), EA.getBankId()),&EA);
         std::cerr << "[FAIL] Mi aspettavo eccezione (fondi insufficienti)\n";
     } catch (const std::runtime_error& ex) {
         std::cout << "[OK] Eccezione attesa (fondi insufficienti): " << ex.what() << "\n";
     } catch (const std::exception& ex) {
-        std::cout << "[OK?] Eccezione (fondi insufficienti): " << ex.what() << "\n";
+        std::cout << "[OK] Eccezione (fondi insufficienti): " << ex.what() << "\n";
     }
 
     try {
@@ -160,7 +159,7 @@ int main() {
 
     try {
         std::cout << "\n--- [TEST] Singola transazione A1 (ID valido) ---\n";
-        A1.printTransactionById("pwdA", "INC-A1-001");
+        A1.printTransactionById("pwdA1", "INC-A1-001");
     } catch (const std::exception& ex) {
         std::cerr << "[ERR] printTransactionById valido: " << ex.what() << "\n";
     }
@@ -175,7 +174,7 @@ int main() {
 
     try {
         std::cout << "\n--- [TEST] Singola transazione A1 (ID inesistente) ---\n";
-        A1.printTransactionById("pwdA", "NO-TX-ID");
+        A1.printTransactionById("pwdA1", "NO-TX-ID");
     } catch (const std::exception& ex) {
         std::cerr << "[ERR] printTransactionById ID inesistente: " << ex.what() << "\n";
     }
@@ -222,7 +221,7 @@ int main() {
     const string fA2 = "A2.csv";
     const string fB1 = "B1.csv";
     try {
-        A1.SaveToFile(fA1, "pwdA");
+        A1.SaveToFile(fA1, "pwdA1");
         A2.SaveToFile(fA2, "pwdA");
         B1.SaveToFile(fB1, "pwdB");
         std::cout << "[OK] CSV salvati.\n";
@@ -233,7 +232,7 @@ int main() {
     // 8) Lettura CSV su nuove istanze e ristampa
     try {
 
-        A1.ReadFromFile(fA1, "pwdA");
+        A1.ReadFromFile(fA1, "pwdA1");
         A2.ReadFromFile(fA2, "pwdA");
         B1.ReadFromFile(fB1, "pwdB");
 

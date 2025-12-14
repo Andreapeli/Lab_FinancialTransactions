@@ -66,8 +66,8 @@ public:
     virtual std::string getType() const = 0;
     virtual double getValue() const = 0;
     virtual std::string toCSV() const {
-        return std::format("{},{},{},{},{},{},{},{},{}", id, getDataFormatted(), amount,
-                           description, category, OperationType, getType(), SenderAccount, ReceiverAccount);
+        return std::format("{},{},{},{},{},{},{},{}", id, getDataFormatted(), amount,
+                           description, category, OperationType, SenderAccount, ReceiverAccount);
     }
 };
 
