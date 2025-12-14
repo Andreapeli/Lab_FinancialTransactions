@@ -48,7 +48,7 @@ int main() {
     BankAccount EA("extern", "EXT001","pwd000");
 
     try {
-        A1.addTransaction(mk_income("INC-A1-001", 1500.0,
+        A1.addTransaction(mk_income("INC-A1-001", 2800,
                                     "Stipendio novembre", "Salary", "Income",
                                     EA.getBankId(), A1.getBankId()),
                           nullptr);
@@ -113,27 +113,26 @@ int main() {
 
     try {
         A1.addTransaction(mk_expense("TRF-SAME-ACC", 10.0,
-                                     "Transfer verso stesso conto (atteso KO)", "invalid Transfer", "Expense",
+                                     "Transfer verso stesso conto (atteso KO)", "Transfer", "Expense",
                                      A1.getBankId(), A1.getBankId()),
                           &A1);
         std::cerr << "[FAIL] Mi aspettavo eccezione (same account)\n";
     } catch (const std::runtime_error& ex1) {
         std::cout << "[OK] Eccezione attesa (same account): " << ex1.what() << "\n";
     } catch (const std::exception& ex) {
-        std::cout << "[OK?] Eccezione (same account): " << ex.what() << "\n";
+        std::cout << "[OK] Eccezione (same account): " << ex.what() << "\n";
     }
 
     try {
 
         A1.addTransaction(mk_expense("EXP-NOFUNDS", 5000.0,
                                       "Acquisto eccessivo", "Transfer", "Expense",
-                                      EA.getBankId(), A1.getBankId()),
-                           nullptr);
+                                      A1.getBankId(), EA.getBankId()),&EA);
         std::cerr << "[FAIL] Mi aspettavo eccezione (fondi insufficienti)\n";
     } catch (const std::runtime_error& ex) {
         std::cout << "[OK] Eccezione attesa (fondi insufficienti): " << ex.what() << "\n";
     } catch (const std::exception& ex) {
-        std::cout << "[OK?] Eccezione (fondi insufficienti): " << ex.what() << "\n";
+        std::cout << "[OK] Eccezione (fondi insufficienti): " << ex.what() << "\n";
     }
 
     try {

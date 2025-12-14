@@ -16,7 +16,7 @@ public:
            std::string tipoOp, std::string SendAcc, std::string RecAcc)
         : Transaction(std::move(idGen), d,i, std::move(desc), std::move(cat), std::move(tipoOp), std::move(SendAcc),std::move( RecAcc)) {}
 
-    std::string getType() const override{
+    std::string getType() const override {
         return "Expense";
     }
     double getValue() const override{

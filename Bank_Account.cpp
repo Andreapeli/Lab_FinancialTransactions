@@ -63,7 +63,7 @@ static void printTransaction(const Transaction& t) {
         "Sender: {}\n"
         "Receiver: {}\n\n",
         t.getId(),
-        t.getDataFormatted(),
+        t.getDataFormatted().substr(0, 19),
         t.getAmount(),
         t.getOperationType(),
         t.getCategory(),
@@ -96,9 +96,8 @@ void BankAccount::validateTransfer(const BankAccount* destinationAccount) const 
     if (!destinationAccount) {
         throw std::invalid_argument("Transfer requires a destination account");
     }
-    if (this->getOwnerId() != destinationAccount->getOwnerId() ||
+    if (this->getOwnerId() == destinationAccount->getOwnerId() &&
         this->getBankId() == destinationAccount->getBankId()) {
-        std::cerr << "Invalid transfer: accounts must belong to the same owner and have different bankId\n";
         throw std::runtime_error("Transfer rule violated");
     }
 }
@@ -106,15 +105,13 @@ void BankAccount::validateTransfer(const BankAccount* destinationAccount) const 
 void BankAccount::addTransaction(std::unique_ptr<Transaction> t,
                                  const BankAccount* destinationAccount) {
     // Regole per i trasferimenti:
-    // deve esserci un destinatario
-    if (t->getOperationType() == "Transfer") {
-        validateTransfer(destinationAccount);
-    }
-
-    // Non si possono effettuare spese nel momento in cui il conto corrente è in negativo
-    if (t->getType() == "Expense" && balance() + t->getValue() < 0) {
-        std::cerr << "Insufficient funds for withdrawal\n";
+    // Non si possono effettuare spese se supera la soglia del saldo presete nel conto
+    if (t->getType() == "Expense" && balance()+ t->getValue() <0 ){
         throw std::runtime_error("Insufficient balance");
+    }
+    // deve esserci un destinatario
+    if (t->getCategory() == "Transfer") {
+        validateTransfer(destinationAccount);
     }
     // Nota: non viene controllata la duplicazione degli ID, si assume che siano unici
     transactions.push_back(std::move(t));
@@ -209,15 +206,15 @@ void BankAccount::SaveToFile(const std::string& filename, const std::string& pwd
     if (!file) throw std::runtime_error("Error opening file");
 
     file << std::format("Account Owner: {}, Bank: {}\n", ownerId, bankId);
-    file << "ID,Date,Amount,Type,Operation,Category,Description,Sender,Receiver\n";
+    file << "ID,Date,Amount,Operation,Category,Description,Sender,Receiver\n";
 
     auto sorted = getSortedTransactions();
     Summary summary = computeSummary();
 
     for (const auto* t : sorted) {
-        file << std::format("{},{},{:.2f},{},{},{},{},{},{}\n",
-                            t->getId(), t->getDataFormatted(), t->getAmount(),
-                            t->getType(), t->getOperationType(), t->getCategory(),
+        file << std::format("{},{},{:.2f},{},{},{},{},{}\n",
+                            t->getId(), t->getDataFormatted().substr(0,19), t->getAmount(),
+                            t->getOperationType(), t->getCategory(),
                             t->getDescription(), t->getSenderAccount(), t->getReceiverAccount());
     }
 
@@ -227,6 +224,7 @@ void BankAccount::SaveToFile(const std::string& filename, const std::string& pwd
 
 void BankAccount::ReadFromFile(const std::string& filename, const std::string& pwd) {
     requireAuth(pwd);
+    transactions.clear();
 
     std::ifstream file(filename);
     if (!file) throw std::runtime_error("Error opening file");
@@ -263,11 +261,11 @@ void BankAccount::ReadFromFile(const std::string& filename, const std::string& p
             break; // ignora il sommario
         }
 
-        // Splitta 9 campi: ID,Date,Amount,Type,Operation,Category,Description,Sender,Receiver
-        std::array<std::string, 9> cols{};
+        // Splitta 8 campi: ID,Date,Amount,Operation,Category,Description,Sender,Receiver
+        std::array<std::string, 8> cols{};
         {
             std::stringstream ss(line);
-            for (int i = 0; i < 9; ++i) {
+            for (int i = 0; i < 8; ++i) {
                 if (!std::getline(ss, cols[i], ',')) {
                     throw std::runtime_error("Malformed CSV line: " + line);
                 }
@@ -277,12 +275,11 @@ void BankAccount::ReadFromFile(const std::string& filename, const std::string& p
         const std::string& id        = cols[0];
         const std::string& dateS     = cols[1];
         const std::string& amtS      = cols[2];
-        const std::string& opType    = cols[3];
-        const std::string& op        = cols[4];
-        const std::string& cat       = cols[5];
-        const std::string& desc      = cols[6];
-        const std::string& senderAcc = cols[7];
-        const std::string& recvAcc   = cols[8];
+        const std::string& op        = cols[3];
+        const std::string& cat       = cols[4];
+        const std::string& desc      = cols[5];
+        const std::string& senderAcc = cols[6];
+        const std::string& recvAcc   = cols[7];
 
         double amount = 0.0;
         try {
@@ -296,14 +293,14 @@ void BankAccount::ReadFromFile(const std::string& filename, const std::string& p
         /* In fase di import NON applichiamo le regole di validazione dei transfer:
          inseriamo direttamente nella lista, così anche le righe "Transfer" vengono
          ripristinate fedelmente dallo storico.*/
-        if (opType == "Income") {
+        if (op == "Income") {
             auto tx = std::make_unique<Income>(id, tp, amount, desc, cat, op, senderAcc, recvAcc);
             transactions.push_back(std::move(tx));
-        } else if (opType == "Expense") {
+        } else if (op == "Expense") {
             auto tx = std::make_unique<Expense>(id, tp, amount, desc, cat, op, senderAcc, recvAcc);
             transactions.push_back(std::move(tx));
         } else {
-            throw std::runtime_error("Unknown Type in CSV: " + opType);
+            throw std::runtime_error("Unknown Operation in CSV: " + op);
         }
     }
 }
